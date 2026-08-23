@@ -1,0 +1,31 @@
+
+### Login admin (para obtener token fresco)
+POST http://localhost:8080/api/auth/admin/login
+Content-Type: application/json
+
+{
+  "correo": "admin@guepardosport.com",
+  "password": "admin123"
+}
+
+### Debe fallar: correo mal formado
+POST http://localhost:8080/api/auth/registro
+Content-Type: application/json
+
+{
+  "nombre": "Prueba",
+  "correo": "no-es-un-correo",
+  "password": "clave1234"
+}
+
+### Debe fallar: cantidad negativa en checkout
+POST http://localhost:8080/api/pedidos
+Content-Type: application/json
+
+{
+  "items": [{ "varianteId": 1, "cantidad": -5 }],
+  "nombreContacto": "Juan",
+  "correoContacto": "juan@example.com",
+  "direccionEnvio": "Zona 1",
+  "metodoPago": "CONTRA_ENTREGA"
+}
