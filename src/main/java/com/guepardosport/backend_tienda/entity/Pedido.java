@@ -65,6 +65,11 @@ public class Pedido {
 
     @Column(name = "numero_rastreo", length = 100)
     private String numeroRastreo;
+    @Column(name = "checkout_id_pasarela", length = 100)
+    private String checkoutIdPasarela;
+
+    public String getCheckoutIdPasarela() { return checkoutIdPasarela; }
+    public void setCheckoutIdPasarela(String checkoutIdPasarela) { this.checkoutIdPasarela = checkoutIdPasarela; }
 
     public String getEmpresaMensajeria() { return empresaMensajeria; }
     public void setEmpresaMensajeria(String empresaMensajeria) { this.empresaMensajeria = empresaMensajeria; }

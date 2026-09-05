@@ -59,6 +59,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/imagenes-hero/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/imagenes-hero/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/imagenes-hero/**").hasRole("ADMIN")
+                        .requestMatchers("/api/webhooks/**").permitAll()
                         .anyRequest().authenticated()
                 )
 

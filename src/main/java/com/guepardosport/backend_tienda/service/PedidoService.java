@@ -20,6 +20,7 @@ public class PedidoService {
     private static final BigDecimal TASA_IVA = new BigDecimal("0.12"); // IVA Guatemala 12%
     private static final BigDecimal COSTO_ENVIO_FIJO = new BigDecimal("25.00");
     private static final BigDecimal MONTO_ENVIO_GRATIS = new BigDecimal("300.00");
+
     @Autowired private FacturaRepository facturaRepository;
     @Autowired private PedidoRepository pedidoRepository;
     @Autowired private PrendaVarianteRepository prendaVarianteRepository;
@@ -27,6 +28,8 @@ public class PedidoService {
     @Autowired private CuponRepository cuponRepository;
     @Autowired private FacturaService facturaService;
     @Autowired private EmailService emailService;
+    @Autowired private RecurrenteService recurrenteService;
+
     @Transactional
     public PedidoResponseDTO crearPedido(CheckoutRequestDTO dto) {
 
@@ -76,7 +79,7 @@ public class PedidoService {
             ivaProductos = ivaProductos.add(ivaLinea);
         }
 
-        // 2. Aplicar cupón (opcional, solo uno por pedido) — reduce el subtotal, no el IVA ya calculado por línea
+        // 2. Aplicar cupón (opcional, solo uno por pedido)
         BigDecimal descuento = BigDecimal.ZERO;
         Cupon cuponAplicado = null;
         if (dto.getCodigoCupon() != null && !dto.getCodigoCupon().isBlank()) {
@@ -95,13 +98,14 @@ public class PedidoService {
             pedido.setCupon(cuponAplicado);
         }
 
-        // 3. Costo de envío (gratis si supera el monto mínimo) + su propio IVA
+        // 3. Costo de envío (gratis si supera el monto mínimo)
         BigDecimal baseParaEnvio = subtotal.subtract(descuento);
         BigDecimal costoEnvio = baseParaEnvio.compareTo(MONTO_ENVIO_GRATIS) >= 0 ? BigDecimal.ZERO : COSTO_ENVIO_FIJO;
 
         BigDecimal iva = ivaProductos; // Solo se calcula IVA sobre los productos, no sobre el envío
 
         BigDecimal total = subtotal.subtract(descuento).add(costoEnvio).add(iva);
+
         pedido.setSubtotal(subtotal);
         pedido.setDescuento(descuento);
         pedido.setCostoEnvio(costoEnvio);
@@ -109,13 +113,24 @@ public class PedidoService {
         pedido.setTotal(total);
         pedido.setDetalles(detalles);
 
-        // Si es pago en línea, aquí en el futuro se llamaría a la pasarela de pago antes de confirmar.
-        // Por ahora queda como PENDIENTE hasta que se integre la pasarela real.
-
         Pedido guardado = pedidoRepository.save(pedido);
         facturaService.generarFactura(guardado, dto.getNit(), dto.getNombreFacturacion(), dto.getDireccionFiscal());
-        emailService.enviarConfirmacionPedido(guardado);
-        return convertirADTO(guardado);
+
+        PedidoResponseDTO respuesta = convertirADTO(guardado);
+
+        if (dto.getMetodoPago().equals("EN_LINEA")) {
+            guardado.setEstadoPago("PENDIENTE_PAGO_EN_LINEA");
+            String urlCheckout = recurrenteService.crearCheckout(
+                    guardado.getId(), guardado.getTotal(), "Pedido Guepardo Sport #" + guardado.getId()
+            );
+            guardado.setCheckoutIdPasarela(urlCheckout);
+            pedidoRepository.save(guardado);
+            respuesta.setUrlPago(urlCheckout);
+        } else {
+            emailService.enviarConfirmacionPedido(guardado);
+        }
+
+        return respuesta;
     }
 
     public List<PedidoResponseDTO> listarTodos() {
@@ -136,6 +151,7 @@ public class PedidoService {
         pedido.setEstadoLogistico(nuevoEstado);
         return convertirADTO(pedidoRepository.save(pedido));
     }
+
     // CU-12: admin marca como pagado un pedido contra entrega
     public PedidoResponseDTO marcarComoPagado(Long id) {
         Pedido pedido = pedidoRepository.findById(id)
@@ -161,7 +177,6 @@ public class PedidoService {
             throw new RuntimeException("El pedido ya fue despachado y no se puede cancelar");
         }
 
-        // Devolver el stock reservado
         for (DetallePedido detalle : pedido.getDetalles()) {
             PrendaVariante variante = detalle.getVariante();
             variante.setStock(variante.getStock() + detalle.getCantidad());
@@ -205,6 +220,7 @@ public class PedidoService {
 
         return dto;
     }
+
     private static final List<String> ESTADOS_LOGISTICOS_VALIDOS = List.of(
             "RECIBIDO", "EN_PREPARACION", "ENVIADO", "ENTREGADO", "CANCELADO"
     );
@@ -214,6 +230,7 @@ public class PedidoService {
             throw new RuntimeException("Estado logístico inválido. Valores permitidos: " + ESTADOS_LOGISTICOS_VALIDOS);
         }
     }
+
     public PedidoResponseDTO actualizarRastreo(Long id, ActualizarRastreoDTO dto) {
         Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Pedido no encontrado con id " + id));

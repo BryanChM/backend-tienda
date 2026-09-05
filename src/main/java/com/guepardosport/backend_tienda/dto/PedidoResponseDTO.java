@@ -19,6 +19,10 @@ public class PedidoResponseDTO {
     private BigDecimal total;
     private LocalDateTime fechaCreacion;
     private List<DetallePedidoDTO> detalles;
+    private String urlPago;
+
+    public String getUrlPago() { return urlPago; }
+    public void setUrlPago(String urlPago) { this.urlPago = urlPago; }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
