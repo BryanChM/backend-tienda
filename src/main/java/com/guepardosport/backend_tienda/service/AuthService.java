@@ -33,7 +33,7 @@ public class AuthService {
         cliente.setCorreo(dto.getCorreo());
         cliente.setHashPassword(passwordEncoder.encode(dto.getPassword()));
         clienteRepository.save(cliente);
-        emailService.enviarBienvenida(cliente);
+       // emailService.enviarBienvenida(cliente);
 
 
         String token = jwtUtil.generarToken(cliente.getCorreo(), "CLIENTE");
@@ -96,7 +96,7 @@ public class AuthService {
         cliente.setResetTokenExpira(java.time.LocalDateTime.now().plusMinutes(30));
         clienteRepository.save(cliente);
 
-        emailService.enviarRecuperacionPassword(cliente, token);
+       // emailService.enviarRecuperacionPassword(cliente, token);
     }
 
     public void restablecerPassword(RestablecerPasswordDTO dto) {
