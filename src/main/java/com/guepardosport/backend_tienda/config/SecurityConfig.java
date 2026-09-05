@@ -37,32 +37,30 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/prendas/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/deportes/**").permitAll()
-                        .requestMatchers("/api/pedidos/**").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/prendas/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/prendas/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/prendas/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/deportes/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/deportes/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/deportes/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/configuracion").permitAll()
-                        .requestMatchers(HttpMethod.PUT, "/api/configuracion").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/configuracion").permitAll()
-                        .requestMatchers(HttpMethod.PUT, "/api/configuracion").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/banner-mensajes/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/banner-mensajes/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/banner-mensajes/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/banner-mensajes/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/imagenes-hero/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/imagenes-hero/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/imagenes-hero/**").hasRole("ADMIN")
-                        .requestMatchers("/api/webhooks/**").permitAll()
+                        // Agregamos ambas variaciones (con y sin /api) para evitar bloqueos 403
+                        .requestMatchers("/api/auth/**", "/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/prendas/**", "/prendas/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/deportes/**", "/deportes/**").permitAll()
+                        .requestMatchers("/api/pedidos/**", "/pedidos/**").permitAll()
+                        .requestMatchers("/api/admin/**", "/admin/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/prendas/**", "/prendas/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/prendas/**", "/prendas/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/prendas/**", "/prendas/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/deportes/**", "/deportes/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/deportes/**", "/deportes/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/deportes/**", "/deportes/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/configuracion", "/configuracion").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/api/configuracion", "/configuracion").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/banner-mensajes/**", "/banner-mensajes/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/banner-mensajes/**", "/banner-mensajes/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/banner-mensajes/**", "/banner-mensajes/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/banner-mensajes/**", "/banner-mensajes/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/imagenes-hero/**", "/imagenes-hero/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/imagenes-hero/**", "/imagenes-hero/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/imagenes-hero/**", "/imagenes-hero/**").hasRole("ADMIN")
+                        .requestMatchers("/api/webhooks/**", "/webhooks/**").permitAll()
                         .anyRequest().authenticated()
                 )
-
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -71,7 +69,14 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:4200"));
+
+        // AQUÍ ESTÁ LA MAGIA: Permitimos Localhost Y tus enlaces de Netlify
+        config.setAllowedOrigins(List.of(
+                "http://localhost:4200",
+                "https://verdant-concha-3f250e.netlify.app",
+                "https://guepardo-sport-tienda.netlify.app"
+        ));
+
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
