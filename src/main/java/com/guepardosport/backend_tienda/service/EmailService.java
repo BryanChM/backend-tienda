@@ -3,24 +3,28 @@ package com.guepardosport.backend_tienda.service;
 import com.guepardosport.backend_tienda.entity.Cliente;
 import com.guepardosport.backend_tienda.entity.Factura;
 import com.guepardosport.backend_tienda.entity.Pedido;
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class EmailService {
 
-    @Autowired
-    private JavaMailSender mailSender;
+    @Value("${resend.api-key}")
+    private String apiKey;
 
-    @Value("${app.mail.remitente}")
+    @Value("${resend.remitente}")
     private String remitente;
+
+    private static final String RESEND_URL = "https://api.resend.com/emails";
+    private final RestTemplate restTemplate = new RestTemplate();
 
     // CU-05: correo de bienvenida al registrarse
     public void enviarBienvenida(Cliente cliente) {
@@ -70,10 +74,10 @@ public class EmailService {
                     </thead>
                     <tbody>%s</tbody>
                 </table>
-                         <p>Descuento: -Q%.2f</p>
-                         <p>Envío: Q%.2f</p>
-                         <p style="font-size:18px;"><strong>Total: Q%.2f</strong></p>
-                         <p style="color:#888; font-size:12px;">IVA incluido (Q%.2f)</p>
+                <p>Descuento: -Q%.2f</p>
+                <p>Envío: Q%.2f</p>
+                <p style="font-size:18px;"><strong>Total: Q%.2f</strong></p>
+                <p style="color:#888; font-size:12px;">IVA incluido (Q%.2f)</p>
                 <p>Método de pago: %s</p>
                 <p>Dirección de envío: %s</p>
                 <p style="margin-top:24px; color:#888; font-size:12px;">Te avisaremos cuando tu pedido sea despachado.</p>
@@ -102,8 +106,8 @@ public class EmailService {
                 <p>Nombre: %s</p>
                 <p>Fecha de emisión: %s</p>
                 <hr>
-                            <p style="font-size:18px;"><strong>Total: Q%.2f</strong></p>
-                            <p style="color:#888; font-size:12px;">IVA incluido (Q%.2f)</p>
+                <p style="font-size:18px;"><strong>Total: Q%.2f</strong></p>
+                <p style="color:#888; font-size:12px;">IVA incluido (Q%.2f)</p>
                 <p style="margin-top:16px; color:#888; font-size:12px;">
                     Estado de certificación FEL: %s.
                     %s
@@ -142,23 +146,12 @@ public class EmailService {
         enviarHtml(pedido.getCorreoContacto(), asunto, cuerpo);
     }
 
-    private void enviarHtml(String destinatario, String asunto, String htmlCuerpo) {
-        try {
-            MimeMessage mensaje = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mensaje, true, "UTF-8");
-            helper.setFrom(remitente);
-            helper.setTo(destinatario);
-            helper.setSubject(asunto);
-            helper.setText(htmlCuerpo, true);
-            mailSender.send(mensaje);
-        } catch (MessagingException e) {
-            // No queremos que un fallo de correo tumbe la operación principal (registro, pago, etc.)
-            System.err.println("Error enviando correo a " + destinatario + ": " + e.getMessage());
-        }
-    }
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
+
     public void enviarRecuperacionPassword(Cliente cliente, String token) {
         String asunto = "Recupera tu contraseña - Guepardo Sport";
-        String enlace = "http://localhost:4200/restablecer-password?token=" + token;
+        String enlace = frontendUrl + "/restablecer-password?token=" + token;
 
         String cuerpo = """
             <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
@@ -171,5 +164,28 @@ public class EmailService {
             """.formatted(cliente.getNombre(), enlace);
 
         enviarHtml(cliente.getCorreo(), asunto, cuerpo);
+    }
+
+    // --- Envío real vía la API HTTPS de Resend (no usa SMTP, evita el bloqueo de Render) ---
+    private void enviarHtml(String destinatario, String asunto, String htmlCuerpo) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(apiKey);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            Map<String, Object> body = Map.of(
+                    "from", "Guepardo Sport <" + remitente + ">",
+                    "to", List.of(destinatario),
+                    "subject", asunto,
+                    "html", htmlCuerpo
+            );
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+            restTemplate.postForEntity(RESEND_URL, request, String.class);
+
+        } catch (Exception e) {
+            // Nunca dejamos que un fallo de correo tumbe la operación principal (registro, pago, etc.)
+            System.err.println("Error enviando correo a " + destinatario + ": " + e.getMessage());
+        }
     }
 }

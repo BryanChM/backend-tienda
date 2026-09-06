@@ -33,7 +33,7 @@ public class AuthService {
         cliente.setCorreo(dto.getCorreo());
         cliente.setHashPassword(passwordEncoder.encode(dto.getPassword()));
         clienteRepository.save(cliente);
-       // emailService.enviarBienvenida(cliente);
+       emailService.enviarBienvenida(cliente);
 
 
         String token = jwtUtil.generarToken(cliente.getCorreo(), "CLIENTE");
